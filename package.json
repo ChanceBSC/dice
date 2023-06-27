@@ -1,0 +1,28 @@
+{
+  "name": "dice",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@thirdweb-dev/chains": "^0.1.24",
+    "@thirdweb-dev/react": "^3.14.3",
+    "@thirdweb-dev/sdk": "^3.10.25",
+    "autoprefixer": "10.4.14",
+    "eslint": "8.42.0",
+    "eslint-config-next": "13.4.4",
+    "ethers": "^5.7.2",
+    "next": "13.4.4",
+    "postcss": "8.4.24",
+    "primereact": "^9.5.0",
+    "rc-slider": "^10.2.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-slider": "^2.0.5",
+    "tailwindcss": "3.3.2"
+  }
+}

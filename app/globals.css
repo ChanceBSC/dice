@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+
+body {
+  font-family: var(--font-family);
+}      
+
+.p-datatable-tbody >:nth-child(odd) {
+  background: #213743 !important;
+  color: white !important;
+}
+
+.p-datatable-tbody >:nth-child(even) {
+  background: #0f212e !important;
+  color: white !important;
+}
+
+.p-datatable-table tr>th {
+  background: #0f212e !important;
+  color: white !important;
+}
+.p-paginator-bottom {
+  background: #0f212e !important;
+}
+
+.p-paginator-page {
+  background: #213743 !important;
+  color:white !important
+
+}
+
+.p-highlight{
+  background: #4338CA !important;
+}
+
+.p-inputwrapper {
+  background: #213743 !important;
+}
+
+.p-inputtext {
+   color:white !important
+}
+
+.p-clickable {
+  color:white
+}
+
+.p-paginator-icon{
+  color:white !important;
+}
+
+.p-dropdown-items {
+  background: #213743 !important;
+}
+
+.p-dropdown-item {
+  background: #213743 !important;
+  color:white !important
+}
+
+.p-paginator-current {
+  color:white !important
+}
