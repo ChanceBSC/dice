@@ -1,0 +1,48 @@
+constructor: This is the constructor of the contract which is called once when the contract is deployed. This function sets the token that will be used for betting in the dice game.
+
+bet: This function allows users to place a bet. The function takes three arguments: the amount they want to bet, the number they choose which is between 1-10, and whether they're betting that the roll will be under or over their chosen number. The function first checks if the game is paused or not, then checks if the bet amount and chosen number are within the allowed range. If they are, it will transfer the bet amount from the user's account to the contract. It then generates a pseudo-random number between 1 and 10 and checks if the user won or lost. If the user won, it calculates the payout amount, checks if the contract has enough balance to pay out, and if it does, it transfers the payout to the user's account. The function also keeps track of the last 10 bets a user placed.
+
+pseudoRandomNumber: This function is used to generate a pseudo-random number between 1 and 10.
+
+withdrawTokens: This function allows the contract owner to withdraw a specific amount of tokens from the contract. The function first checks if the contract has enough balance to withdraw the requested amount, and if it does, it transfers the tokens to the owner's account.
+
+depositTokens: This function allows the contract owner to deposit a specific amount of tokens into the contract. The tokens are transferred from the owner's account to the contract.
+
+setHouseEdgePercent: This function allows the contract owner to set the house edge percentage. The house edge is the percentage of the bet amount that the house keeps when a user wins a bet. The new house edge must be 10% or less.
+
+setMinMaxBet: This function allows the contract owner to set the minimum and maximum bet amounts. The new minimum bet must be less than the new maximum bet.
+
+pause: This function allows the contract owner to pause the game, meaning no new bets can be placed while the game is paused.
+
+unpause: This function allows the contract owner to unpause the game, allowing new bets to be placed.
+
+toggleAutoRoll: This function allows users to toggle on or off an auto roll feature. 
+
+isAllowanceSufficient: This function allows anyone to check if a user has given the contract enough allowance to cover a certain amount.
+
+
+
+
+
+
+"args": [
+        "0x3D4a2A4891B7F31940Fe541Bea917C6084c69cBd", // user address
+        {
+          "type": "BigNumber",
+          "hex": "0x0f4240" // bet amount
+        },
+        {
+          "type": "BigNumber",
+          "hex": "0x02" // chosen number
+        },
+        true, // bet under
+        {
+          "type": "BigNumber",
+          "hex": "0x0a" // roll
+        },
+        false // win
+      ],
+      "event": "BetResult",
+      "eventSignature": "BetResult(address,uint256,uint256,bool,uint256,bool)"
+    }
+  ]
