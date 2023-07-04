@@ -32,14 +32,15 @@ export default function Home() {
   const [betAmount, setBetAmount] = useState("");
   const [chosenNumber, setChosenNumber] = useState(5);
   console.log("🚀 ~ file: page.js:33 ~ Home ~ chosenNumber:", chosenNumber);
-  const [betUnder, setBetUnder] = useState("");
+  const [betUnder, setBetUnder] = useState(false);
+  console.log("🚀 ~ file: page.js:36 ~ Home ~ betUnder:", betUnder);
 
   const [potentialWin, setPotentialWin] = useState("");
-  console.log("🚀 ~ file: page.js:38 ~ Home ~ potentialWin:", potentialWin)
+  console.log("🚀 ~ file: page.js:38 ~ Home ~ potentialWin:", potentialWin);
   const [multiplier, setMultiplier] = useState(1);
-  console.log("🚀 ~ file: page.js:40 ~ Home ~ multiplier:", multiplier)
+  console.log("🚀 ~ file: page.js:40 ~ Home ~ multiplier:", multiplier);
   const [probability, setProbability] = useState(0.6);
-  console.log("🚀 ~ file: page.js:42 ~ Home ~ probability:", probability)
+  console.log("🚀 ~ file: page.js:42 ~ Home ~ probability:", probability);
 
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [playerBetDetails, setPlayerBetDetails] = useState({
@@ -118,55 +119,20 @@ export default function Home() {
     "bet"
   );
 
-  async function placeBet() {
-    try {
-      const data = await bet({
-        args: [betAmount, chosenNumber, betUnder],
-      });
-      console.log("contract call success", data);
-    } catch (e) {
-      console.error("contract call failure", err);
-    }
-  }
-
-  async function readData() {
-    try {
-      // const houseEdgePercentData = await diceContract?.call(
-      //   "houseEdgePercent",
-      //   [address]
-      // );
-      const keys = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-      for (const key of keys) {
-        try {
-          const details = await diceContract?.call("playerBets", [
-            address,
-            key,
-          ]);
-          console.log("display details", key);
-          setPlayerBetDetails({
-            address: address,
-            betAmount: details.betAmount,
-            chosenNumber: details.chosenNumber,
-            betUnder: details.betUnder,
-            win: details.win,
-            roll: details.roll,
-          });
-        } catch (e) {
-          console.error("🚀 ~ file: page.js:128 ~ readData ~ e:", e);
-        }
+  const handleIncreaseButton = useCallback(
+    (operation) => {
+      if (operation === "half") {
+        setBetAmount(betAmount / 2);
+      } else if (operation === "double") {
+        setBetAmount(betAmount * 2);
       }
-    } catch (e) {
-      console.log("error reading data", e);
-    }
-  }
+    },
+    [betAmount]
+  );
 
-  const handleIncreaseButton = useCallback((operation) => {
-    if (operation === 'half') {
-      setBetAmount(betAmount / 2);
-    } else if (operation === 'double') {
-      setBetAmount(betAmount * 2)
-    }
-  }, [betAmount])
+  const handleBetUnder = (event) => {
+    setBetUnder(event.target.value === 'true');
+  };
 
   const handleBetAmount = (event) => {
     let num = Number(tokenBalance?.displayValue).toFixed(2);
@@ -178,7 +144,6 @@ export default function Home() {
       // handleRollNumber(betAmount);
     }
   };
-
 
   const handleRollNumber = (event) => {
     const number = event.target.value;
@@ -209,11 +174,47 @@ export default function Home() {
     setPotentialWin(winAmount);
   };
 
+  async function placeBet() {
+    try {
+      const data = await bet({
+        args: [betAmount, chosenNumber, betUnder],
+      });
+      console.log("contract call success", data);
+    } catch (e) {
+      console.error("contract call failure", err);
+    }
+  }
+
+  async function readData() {
+    try {
+      // const houseEdgePercentData = await diceContract?.call(
+      //   "houseEdgePercent",
+      //   [address]
+      // );
+      const keys = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+      for (const key of keys) {
+        try {
+          const details = await diceContract?.call("playerBets", [
+            address,
+            key,
+          ]);
+          console.log("🚀 ~ file: page.js:201 ~ readData ~ details:", details)
+          console.log("display details", key);
+          setPlayerBetDetails(details);
+        } catch (e) {
+          console.error("🚀 ~ file: page.js:128 ~ readData ~ e:", e);
+        }
+      }
+    } catch (e) {
+      console.log("error reading data", e);
+    }
+  }
+
   useEffect(() => {
-    const winAmount = (betAmount * multiplier).toFixed(2)
-    console.log("🚀 ~ file: page.js:213 ~ useEffect ~ winAmount:", winAmount)
-    setPotentialWin(winAmount)
-  }, [betAmount, chosenNumber, multiplier, probability])
+    const winAmount = (betAmount * multiplier).toFixed(2);
+    console.log("🚀 ~ file: page.js:213 ~ useEffect ~ winAmount:", winAmount);
+    setPotentialWin(winAmount);
+  }, [betAmount, chosenNumber, multiplier, probability]);
 
   useEffect(() => {
     readData();
@@ -451,6 +452,26 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
             step="1"
             onChange={handleRollNumber}
           />
+          <div>
+            <label>
+              <input
+                type="radio"
+                value="false"
+                checked={betUnder === false}
+                onChange={handleBetUnder}
+              />
+              Bet Under (false)
+            </label>
+            <label>
+              <input
+                type="radio"
+                value="true"
+                checked={betUnder === true} 
+                onChange={handleBetUnder}
+              />
+              Bet Under (true)
+            </label>
+          </div>
           {/* <Slider
             className="my-28 md:my-auto"
             min={0}
