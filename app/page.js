@@ -22,6 +22,7 @@ import { Goerli, BinanceTestnet, Binance } from "@thirdweb-dev/chains";
 
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
+import { useCallback } from "react";
 
 export default function Home() {
   const [betMethod, setBetMethod] = useState(0);
@@ -29,11 +30,32 @@ export default function Home() {
   const [selection2, setSelection2] = useState(0);
 
   const [betAmount, setBetAmount] = useState("");
-  const [chosenNumber, setChosenNumber] = useState("");
+  const [chosenNumber, setChosenNumber] = useState(5);
+  console.log("🚀 ~ file: page.js:33 ~ Home ~ chosenNumber:", chosenNumber);
   const [betUnder, setBetUnder] = useState("");
 
+  const [potentialWin, setPotentialWin] = useState("");
+  console.log("🚀 ~ file: page.js:38 ~ Home ~ potentialWin:", potentialWin)
+  const [multiplier, setMultiplier] = useState(1);
+  console.log("🚀 ~ file: page.js:40 ~ Home ~ multiplier:", multiplier)
+  const [probability, setProbability] = useState(0.6);
+  console.log("🚀 ~ file: page.js:42 ~ Home ~ probability:", probability)
+
   const [withdrawAmount, setWithdrawAmount] = useState("");
-  const [playerBetDetails, setPlayerBetDetails] = useState("");
+  const [playerBetDetails, setPlayerBetDetails] = useState({
+    address: "",
+    betAmount: "",
+    chosenNumber: "",
+    betUnder: "",
+    win: "",
+    roll: "",
+  });
+
+  //     user: "Hindzak",
+  //     date: "November 4,2022",
+  //     bet: 148.985,
+  //     multiplier: "2.00x",
+  //     payout: 297.97,
 
   const disconnect = useDisconnect();
   const isMismatched = useNetworkMismatch();
@@ -54,26 +76,7 @@ export default function Home() {
     isLoading: contractIsLoading,
     error: contractError,
   } = useContract(process.env.NEXT_PUBLIC_TOKEN_CONTRACT);
-  console.log("🚀 ~ file: page.js:57 ~ Home ~ tokenContract:", tokenContract)
-
-  const { data: tokenBalance } = useTokenBalance(tokenContract, address)
-  console.log("🚀 ~ file: page.js:61 ~ Home ~ tokenBalance:", tokenBalance)
-
-  const { mutateAsync: bet, isLoading: betIsLoading } = useContractWrite(
-    diceContract,
-    "bet"
-  );
-
-  async function placeBet() {
-    try {
-      const data = await bet({
-        args: [betAmount, chosenNumber, betUnder],
-      });
-      console, log("contract call success", data);
-    } catch (e) {
-      console.error("contract call failure", err);
-    }
-  }
+  console.log("🚀 ~ file: page.js:57 ~ Home ~ tokenContract:", tokenContract);
 
   const { data: totalProfit } = useContractRead(diceContract, "totalProfit");
   const { data: totalLoss } = useContractRead(diceContract, "totalLoss");
@@ -86,6 +89,18 @@ export default function Home() {
     address,
     0,
   ]);
+  const { data: maxPayoutMultiplier } = useContractRead(
+    diceContract,
+    "maxPayoutMultiplier"
+  );
+  console.log(
+    "🚀 ~ file: page.js:85 ~ Home ~ maxPayoutMultiplier:",
+    maxPayoutMultiplier
+  );
+  const { data: maxBet } = useContractRead(diceContract, "maxBet");
+  console.log("🚀 ~ file: page.js:90 ~ Home ~ maxBet:", maxBet);
+  const { data: minBet } = useContractRead(diceContract, "minBet");
+  console.log("🚀 ~ file: page.js:92 ~ Home ~ minBet:", minBet);
 
   console.log("🚀 ~ file: page.js:80 ~ Home ~ totalProfit:", totalProfit);
   console.log("🚀 ~ file: page.js:76 ~ Home ~ totalLoss:", totalLoss);
@@ -95,6 +110,24 @@ export default function Home() {
   );
   console.log("🚀 ~ file: page.js:78 ~ Home ~ playerBets:", playerBets);
 
+  const { data: tokenBalance } = useTokenBalance(tokenContract, address);
+  console.log("🚀 ~ file: page.js:61 ~ Home ~ tokenBalance:", tokenBalance);
+
+  const { mutateAsync: bet, isLoading: betIsLoading } = useContractWrite(
+    diceContract,
+    "bet"
+  );
+
+  async function placeBet() {
+    try {
+      const data = await bet({
+        args: [betAmount, chosenNumber, betUnder],
+      });
+      console.log("contract call success", data);
+    } catch (e) {
+      console.error("contract call failure", err);
+    }
+  }
 
   async function readData() {
     try {
@@ -110,7 +143,14 @@ export default function Home() {
             key,
           ]);
           console.log("display details", key);
-      setPlayerBetDetails(details);
+          setPlayerBetDetails({
+            address: address,
+            betAmount: details.betAmount,
+            chosenNumber: details.chosenNumber,
+            betUnder: details.betUnder,
+            win: details.win,
+            roll: details.roll,
+          });
         } catch (e) {
           console.error("🚀 ~ file: page.js:128 ~ readData ~ e:", e);
         }
@@ -120,9 +160,60 @@ export default function Home() {
     }
   }
 
+  const handleIncreaseButton = useCallback((operation) => {
+    if (operation === 'half') {
+      setBetAmount(betAmount / 2);
+    } else if (operation === 'double') {
+      setBetAmount(betAmount * 2)
+    }
+  }, [betAmount])
+
   const handleBetAmount = (event) => {
-    
-  }
+    let num = Number(tokenBalance?.displayValue).toFixed(2);
+    if (event.target.value.length > num.length) {
+      setBetAmount(Number(tokenBalance?.displayValue).toFixed(2));
+      // handleRollNumber(event);
+    } else {
+      setBetAmount(event.target.value);
+      // handleRollNumber(betAmount);
+    }
+  };
+
+
+  const handleRollNumber = (event) => {
+    const number = event.target.value;
+    console.log("🚀 ~ file: page.js:179 ~ handleRollNumber ~ number:", number);
+
+    const minRange = 1;
+    const maxRange = 10;
+
+    if (number < minRange || number > maxRange) {
+      return null;
+    }
+
+    const prob = (maxRange - number + 1) / (maxRange - minRange + 1);
+    console.log("🚀 ~ file: page.js:166 ~ handleRollNumber ~ prob:", prob);
+
+    const multi = (maxPayoutMultiplier.toString() / prob).toFixed(2);
+    console.log("🚀 ~ file: page.js:168 ~ handleRollNumber ~ multi:", multi);
+
+    const winAmount = (betAmount * multi).toFixed(2);
+    console.log(
+      "🚀 ~ file: page.js:175 ~ handleRollNumber ~ winAmount:",
+      winAmount
+    );
+
+    setChosenNumber(number);
+    setProbability(prob);
+    setMultiplier(multi);
+    setPotentialWin(winAmount);
+  };
+
+  useEffect(() => {
+    const winAmount = (betAmount * multiplier).toFixed(2)
+    console.log("🚀 ~ file: page.js:213 ~ useEffect ~ winAmount:", winAmount)
+    setPotentialWin(winAmount)
+  }, [betAmount, chosenNumber, multiplier, probability])
 
   useEffect(() => {
     readData();
@@ -242,14 +333,26 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
                 <input
                   type="number"
                   className="outline-none px-2 col-span-4 bg-gray-secondary text-white rounded-lg"
-                  placeholder={tokenBalance?.displayValue}
+                  placeholder={
+                    address
+                      ? `${Number(tokenBalance?.displayValue).toLocaleString(
+                          2
+                        )} ${tokenBalance?.symbol}`
+                      : "Balance"
+                  }
                   value={betAmount}
                   onChange={handleBetAmount}
-                  />
-                <button className="text-white border-r-2 text-sm border-gray-800">
+                />
+                <button
+                  className="text-white border-r-2 text-sm border-gray-800"
+                  onClick={() => handleIncreaseButton("half")}>
                   1/2
                 </button>
-                <button className="text-white text-sm">2x</button>
+                <button
+                  className="text-white text-sm"
+                  onClick={() => handleIncreaseButton("double")}>
+                  2x
+                </button>
               </div>
 
               <div className="flex justify-between ">
@@ -258,9 +361,11 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
               </div>
               <input
                 type="number"
+                disabled
                 className="outline-none px-2 col-span-4 bg-gray-secondary w-full rounded-md text-white  mt-1"
                 placeholder="0.000000"
-                />
+                value={potentialWin}
+              />
               <button className="bg-green-500 my-3 w-full rounded-lg py-2">
                 Bet
               </button>
@@ -275,7 +380,8 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
               <div className=" gap-2 mb-2 bg-gray-btn grid grid-cols-6 p-1 rounded-md mt-1">
                 <input
                   type="number"
-                  className="outline-none px-2 col-span-4 bg-gray-secondary text-white rounded-lg"></input>
+                  className="outline-none px-2 col-span-4 bg-gray-secondary text-white rounded-lg"
+                />
                 <button className="text-white border-r-2 text-sm border-gray-800">
                   1/2
                 </button>
@@ -285,7 +391,8 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
               <div className="text-gray-300 text-xs">Number of bets</div>
               <input
                 type="number"
-                className="outline-none px-2 col-span-4 bg-gray-secondary w-full rounded-md text-white  mt-1"></input>
+                className="outline-none px-2 col-span-4 bg-gray-secondary w-full rounded-md text-white  mt-1"
+              />
 
               <div className="text-gray-300 text-xs mt-2">On Win</div>
               <div className="grid grid-cols-6 justify-items-center content-center bg-gray-btn rounded-md p-1">
@@ -297,7 +404,8 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
                 </div>
                 <input
                   type="number"
-                  className="outline-none px-2 col-span-3 bg-gray-secondary w-full rounded-md text-white  mt-1"></input>
+                  className="outline-none px-2 col-span-3 bg-gray-secondary w-full rounded-md text-white  mt-1"
+                />
               </div>
 
               <div className="text-gray-300 text-xs mt-2">On Loss</div>
@@ -310,18 +418,21 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
                 </div>
                 <input
                   type="number"
-                  className="outline-none px-2 col-span-3 bg-gray-secondary w-full rounded-md text-white  mt-1"></input>
+                  className="outline-none px-2 col-span-3 bg-gray-secondary w-full rounded-md text-white  mt-1"
+                />
               </div>
 
               <div className="text-gray-300 text-xs">Stop on Profit</div>
               <input
                 type="number"
-                className="outline-none px-2 col-span-4 bg-gray-secondary w-full rounded-md text-white  mt-1"></input>
+                className="outline-none px-2 col-span-4 bg-gray-secondary w-full rounded-md text-white  mt-1"
+              />
 
               <div className="text-gray-300 text-xs mt-2">Stop on Loss</div>
               <input
                 type="number"
-                className="outline-none px-2 col-span-4 bg-gray-secondary w-full rounded-md text-white  mt-1"></input>
+                className="outline-none px-2 col-span-4 bg-gray-secondary w-full rounded-md text-white  mt-1"
+              />
 
               <button className="bg-green-500 my-3 w-full rounded-lg py-2">
                 Bet
@@ -331,38 +442,61 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
         </div>
 
         <div className="col-span-5 bg-gray-secondary flex flex-col px-10 rounded-r-md">
-          <Slider
+          <input
+            className="my-28 md:my-auto"
+            type="range"
+            min="0"
+            max="10"
+            value={chosenNumber}
+            step="1"
+            onChange={handleRollNumber}
+          />
+          {/* <Slider
             className="my-28 md:my-auto"
             min={0}
             max={10}
             defaultValue={5}
+            value={sliderValue}
+            onChange={handleRollNumber}
+            step={1}
             trackStyle={{ backgroundColor: "red" }}
             handleStyle={{
               borderColor: "blue",
               backgroundColor: "blue",
             }}
             railStyle={{ backgroundColor: "green" }}
-          />
+          /> */}
           <div className="grid grid-cols-3 flex-wrap bg-gray-tertiary rounded-lg p-3 gap-2 justify-self-end  mt-auto mb-3">
             <div className="flex flex-col ">
               <div className="text-gray-300 text-xs mb-1">Multiplier</div>
               <input
                 type="number"
-                className="outline-none px-2 col-span-4 bg-gray-secondary w-full rounded-md text-white  mt-1"></input>
+                className="outline-none px-2 col-span-4 bg-gray-secondary w-full rounded-md text-white  mt-1"
+                disabled
+                value={multiplier}
+              />
             </div>
 
             <div className="flex flex-col">
               <div className="text-gray-300 text-xs mb-1">Roll Over</div>
               <input
                 type="number"
-                className="outline-none px-2 col-span-4 bg-gray-secondary w-full rounded-md text-white  mt-1"></input>
+                min="1"
+                max="10"
+                className="outline-none px-2 col-span-4 bg-gray-secondary w-full rounded-md text-white  mt-1"
+                value={chosenNumber}
+                onChange={handleRollNumber}
+              />
             </div>
 
             <div className="flex flex-col">
               <div className="text-gray-300 text-xs mb-1">Win Chance</div>
               <input
                 type="number"
-                className="outline-none px-2 col-span-4 bg-gray-secondary w-full rounded-md text-white  mt-1"></input>
+                className="outline-none px-2 col-span-4 bg-gray-secondary w-full rounded-md text-white  mt-1"
+                disabled
+                value={probability}
+              />
             </div>
           </div>
         </div>

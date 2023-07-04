@@ -38,7 +38,7 @@ isAllowanceSufficient: This function allows anyone to check if a user has given 
         true, // bet under
         {
           "type": "BigNumber",
-          "hex": "0x0a" // roll
+          "hex": "0x0a" // roll (the number it lands on)
         },
         false // win
       ],
@@ -46,3 +46,14 @@ isAllowanceSufficient: This function allows anyone to check if a user has given 
       "eventSignature": "BetResult(address,uint256,uint256,bool,uint256,bool)"
     }
   ]
+
+The user can select their desired "Roll Under" number. If the number rolled on the dice is lower than their chosen "Roll Under" number, they receive a prize based on the multiplier. Here's an example scenario:
+
+I set my "Roll Under" number to 98, with a winning multiplier of 1.0101x and a 98% win chance. I place a $10 bet and roll the dice, which lands on 77. Since 77 is below my chosen "Roll Under" number, I win the bet. As a result, I receive a reward of $10.101, calculated by multiplying my bet amount by the multiplier.
+The lower the "Roll Under" number, the higher the multiplier (so they win more prize) but their winning chance will also be lowered since the number below their Roll Under number will be lesser
+RUN = Roll Under Number
+
+Eg: if they choose 98 as their RUN, as long as they roll anywhere from 1 to 98 they will win. But if they choose like 50 as their RUN number, their winning chance will drop to only 50% but as a result, they will be given a higher multiplier as their winning bet
+The lower the odds, the higher the winning bet from multiplier.
+Tawtis will be sending you the multiplier after he is done with it 
+Since we only have 10 number it should be easy
