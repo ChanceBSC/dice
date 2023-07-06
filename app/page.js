@@ -42,13 +42,32 @@ export default function Home() {
   const [probability, setProbability] = useState(0.6);
   console.log("🚀 ~ file: page.js:42 ~ Home ~ probability:", probability);
 
+  const [stopOnProfit, setStopOnProfit] = useState("");
+  const [stopOnLoss, setStopOnLoss] = useState("");
+
+  const [numOfBet, setNumOfBet] = useState(2);
+  const [increaseOnProfit, setIncreaseOnProfit] = useState(0);
+  const [increaseOnLoss, setIncreaseOnLoss] = useState(0);
+
+  const [depositAmount, setDepositAmount] = useState("");
+  console.log("🚀 ~ file: page.js:53 ~ Home ~ depositAmount:", depositAmount);
   const [withdrawAmount, setWithdrawAmount] = useState("");
+  console.log("🚀 ~ file: page.js:55 ~ Home ~ withdrawAmount:", withdrawAmount);
   const [playerBetDetails, setPlayerBetDetails] = useState({
     address: "",
     betAmount: "",
     chosenNumber: "",
-    betUnder: "",
-    win: "",
+    betUnder: false,
+    win: false,
+    roll: "",
+  });
+
+  const [allPlayerBetDetails, setAllPlayerBetDetails] = useState({
+    address: "",
+    betAmount: "",
+    chosenNumber: "",
+    betUnder: false,
+    win: false,
     roll: "",
   });
 
@@ -64,6 +83,7 @@ export default function Home() {
   const switchChain = useSwitchChain();
 
   const address = useAddress();
+  console.log("🚀 ~ file: page.js:86 ~ Home ~ address:", address);
 
   const {
     contract: diceContract,
@@ -79,45 +99,62 @@ export default function Home() {
   } = useContract(process.env.NEXT_PUBLIC_TOKEN_CONTRACT);
   console.log("🚀 ~ file: page.js:57 ~ Home ~ tokenContract:", tokenContract);
 
+  const { data: tokenBalance } = useTokenBalance(tokenContract, address);
+
   const { data: totalProfit } = useContractRead(diceContract, "totalProfit");
   const { data: totalLoss } = useContractRead(diceContract, "totalLoss");
-  const { data: playerBetCount } = useContractRead(
-    diceContract,
-    "playerBetCount",
-    [address]
-  );
-  const { data: playerBets } = useContractRead(diceContract, "playerBets", [
-    address,
-    0,
-  ]);
+
   const { data: maxPayoutMultiplier } = useContractRead(
     diceContract,
     "maxPayoutMultiplier"
   );
+  const { data: maxBet } = useContractRead(diceContract, "maxBet");
+  const { data: minBet } = useContractRead(diceContract, "minBet");
+  const { data: contractTokenBalance, isLoading: balanceIsLoading } =
+    useContractRead(diceContract, "balances", [address]);
+
+  const { data: playerLosses } = useContractRead(diceContract, "playerLosses", [
+    address,
+  ]);
+  const { data: playerWins } = useContractRead(diceContract, "playerWins", [
+    address,
+  ]);
+
   console.log(
     "🚀 ~ file: page.js:85 ~ Home ~ maxPayoutMultiplier:",
     maxPayoutMultiplier
   );
-  const { data: maxBet } = useContractRead(diceContract, "maxBet");
-  console.log("🚀 ~ file: page.js:90 ~ Home ~ maxBet:", maxBet);
-  const { data: minBet } = useContractRead(diceContract, "minBet");
+  console.log(
+    "🚀 ~ file: page.js:118 ~ Home ~ contractTokenBalance:",
+    contractTokenBalance
+  );
   console.log("🚀 ~ file: page.js:92 ~ Home ~ minBet:", minBet);
-
+  console.log("🚀 ~ file: page.js:112 ~ Home ~ maxBet:", maxBet);
   console.log("🚀 ~ file: page.js:80 ~ Home ~ totalProfit:", totalProfit);
   console.log("🚀 ~ file: page.js:76 ~ Home ~ totalLoss:", totalLoss);
-  console.log(
-    "🚀 ~ file: page.js:77 ~ Home ~ playerBetCount:",
-    playerBetCount && playerBetCount.toString()
-  );
-  console.log("🚀 ~ file: page.js:78 ~ Home ~ playerBets:", playerBets);
-
-  const { data: tokenBalance } = useTokenBalance(tokenContract, address);
   console.log("🚀 ~ file: page.js:61 ~ Home ~ tokenBalance:", tokenBalance);
 
   const { mutateAsync: bet, isLoading: betIsLoading } = useContractWrite(
     diceContract,
     "bet"
   );
+
+  const { data: allow } = useContractRead(tokenContract, "allowance", [
+    address,
+    process.env.NEXT_PUBLIC_DICE_CONTRACT,
+  ]);
+
+  const { mutateAsync: approve, isLoading: approveIsLoading } =
+    useContractWrite(tokenContract, "approve");
+
+  const { mutateAsync: autoBet, isLoading: autoBetIsLoading } =
+    useContractWrite(diceContract, "autoBet");
+
+  const { mutateAsync: deposit, isLoading: depositIsLoading } =
+    useContractWrite(diceContract, "deposit");
+
+  const { mutateAsync: withdraw, isLoading: withdrawIsLoading } =
+    useContractWrite(diceContract, "withdraw");
 
   const handleIncreaseButton = useCallback(
     (operation) => {
@@ -129,10 +166,6 @@ export default function Home() {
     },
     [betAmount]
   );
-
-  const handleBetUnder = (event) => {
-    setBetUnder(event.target.value === 'true');
-  };
 
   const handleBetAmount = (event) => {
     let num = Number(tokenBalance?.displayValue).toFixed(2);
@@ -174,6 +207,17 @@ export default function Home() {
     setPotentialWin(winAmount);
   };
 
+  async function approveFunction() {
+    try {
+      const data = await approve({
+        args: [process.env.NEXT_PUBLIC_DICE_CONTRACT, "100000"],
+      });
+      console.log("contract call success", data);
+    } catch (e) {
+      console.error("contract call failure", e);
+    }
+  }
+
   async function placeBet() {
     try {
       const data = await bet({
@@ -185,28 +229,91 @@ export default function Home() {
     }
   }
 
+  async function placeAutoBet() {
+    try {
+      const data = await autoBet({
+        args: [
+          betAmount,
+          chosenNumber,
+          betUnder,
+          numOfBet,
+          stopOnProfit,
+          stopOnLoss,
+          increaseOnProfit,
+          increaseOnLoss,
+        ],
+      });
+      console.log("contract call success", data);
+    } catch (e) {
+      console.error("contract call failure", e);
+    }
+  }
+
+  async function readAllData() {
+    try {
+      const limit = 20;
+      const data = await diceContract?.call("getAllBets", [limit]);
+      setAllPlayerBetDetails({
+        ...allPlayerBetDetails,
+        address: data.address,
+        betAmount: data.betAmount,
+        chosenNumber: data.chosenNumber,
+        betUnder: data.betUnder,
+        win: data.win,
+        roll: data.roll,
+      });
+      console.log("success", data);
+    } catch (e) {
+      console.error("error reading data", e);
+    }
+  }
+
   async function readData() {
     try {
-      // const houseEdgePercentData = await diceContract?.call(
-      //   "houseEdgePercent",
-      //   [address]
-      // );
-      const keys = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-      for (const key of keys) {
-        try {
-          const details = await diceContract?.call("playerBets", [
-            address,
-            key,
-          ]);
-          console.log("🚀 ~ file: page.js:201 ~ readData ~ details:", details)
-          console.log("display details", key);
-          setPlayerBetDetails(details);
-        } catch (e) {
-          console.error("🚀 ~ file: page.js:128 ~ readData ~ e:", e);
-        }
+      const limit = 20;
+      const data = await diceContract?.call("getPlayerBets", [address, limit]);
+      setPlayerBetDetails({
+        ...playerBetDetails,
+        address: data.address,
+        betAmount: data.betAmount,
+        chosenNumber: data.chosenNumber,
+        betUnder: data.betUnder,
+        win: data.win,
+        roll: data.roll,
+      });
+      console.log("success", data);
+    } catch (e) {
+      console.error("error reading data", e);
+    }
+  }
+
+  async function callDeposit() {
+    try {
+      if (depositAmount === "") {
+        return;
+      } else {
+        const data = await deposit({
+          args: [depositAmount],
+        });
+        console.info("deposit contract call success", data);
       }
     } catch (e) {
-      console.log("error reading data", e);
+      console.error("contract call failure", e);
+    }
+  }
+
+  async function callWithdraw() {
+    try {
+      if (withdrawAmount === "") {
+        return;
+      } else {
+        const data = await withdraw({
+          args: [withdrawAmount],
+        });
+        console.info("withdraw contract call success", data);
+      }
+    } catch (e) {
+      console.error("contract call failure", e);
     }
   }
 
@@ -217,7 +324,7 @@ export default function Home() {
   }, [betAmount, chosenNumber, multiplier, probability]);
 
   useEffect(() => {
-    readData();
+    readAllData();
   }, [diceContract, address]);
 
   useEffect(() => {
@@ -321,6 +428,13 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
               onClick={() => setBetMethod((value) => (value = 1))}>
               Auto
             </button>
+            <button
+              className={` w-full rounded-2xl py-1 ${
+                betMethod == 2 ? "bg-gray-btn" : ""
+              }`}
+              onClick={() => setBetMethod((value) => (value = 2))}>
+              Swap
+            </button>
           </div>
 
           {betMethod == 0 ? (
@@ -367,14 +481,17 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
                 placeholder="0.000000"
                 value={potentialWin}
               />
-              <button className="bg-green-500 my-3 w-full rounded-lg py-2">
+              <button
+                className="bg-green-500 my-3 w-full rounded-lg py-2"
+                disabled={!address || betIsLoading}
+                onClick={() => {}}>
                 Bet
               </button>
             </div>
-          ) : (
+          ) : betMethod == 1 ? (
             <div>
               <div className="flex justify-between ">
-                <div className="text-gray-300 text-xs">Bet Amount</div>
+                <div className="text-gray-300 text-xs">Bet Amount Auto</div>
                 <div className="text-gray-300 text-xs">$1.00</div>
               </div>
 
@@ -382,17 +499,35 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
                 <input
                   type="number"
                   className="outline-none px-2 col-span-4 bg-gray-secondary text-white rounded-lg"
+                  placeholder={
+                    address
+                      ? `${Number(tokenBalance?.displayValue).toLocaleString(
+                          2
+                        )} ${tokenBalance?.symbol}`
+                      : "Balance"
+                  }
+                  value={betAmount}
+                  onChange={handleBetAmount}
                 />
-                <button className="text-white border-r-2 text-sm border-gray-800">
+                <button
+                  className="text-white border-r-2 text-sm border-gray-800"
+                  onClick={() => handleIncreaseButton("half")}>
                   1/2
                 </button>
-                <button className="text-white text-sm">2x</button>
+                <button
+                  className="text-white text-sm"
+                  onClick={() => handleIncreaseButton("double")}>
+                  2x
+                </button>
               </div>
 
               <div className="text-gray-300 text-xs">Number of bets</div>
               <input
                 type="number"
                 className="outline-none px-2 col-span-4 bg-gray-secondary w-full rounded-md text-white  mt-1"
+                placeholder="Number of bets"
+                value={numOfBet}
+                onChange={(e) => setNumOfBet(parseFloat(e.target.value))}
               />
 
               <div className="text-gray-300 text-xs mt-2">On Win</div>
@@ -406,6 +541,11 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
                 <input
                   type="number"
                   className="outline-none px-2 col-span-3 bg-gray-secondary w-full rounded-md text-white  mt-1"
+                  placeholder="On Win"
+                  value={increaseOnProfit}
+                  onChange={(e) =>
+                    setIncreaseOnProfit(parseFloat(e.target.value))
+                  }
                 />
               </div>
 
@@ -420,6 +560,11 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
                 <input
                   type="number"
                   className="outline-none px-2 col-span-3 bg-gray-secondary w-full rounded-md text-white  mt-1"
+                  placeholder="On Loss"
+                  value={increaseOnLoss}
+                  onChange={(e) =>
+                    setIncreaseOnLoss(parseFloat(e.target.value))
+                  }
                 />
               </div>
 
@@ -427,16 +572,87 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
               <input
                 type="number"
                 className="outline-none px-2 col-span-4 bg-gray-secondary w-full rounded-md text-white  mt-1"
+                placeholder="Stop on Profit"
+                value={stopOnProfit}
+                onChange={(e) => setStopOnProfit(parseFloat(e.target.value))}
               />
 
               <div className="text-gray-300 text-xs mt-2">Stop on Loss</div>
               <input
                 type="number"
                 className="outline-none px-2 col-span-4 bg-gray-secondary w-full rounded-md text-white  mt-1"
+                placeholder="Stop on Loss"
+                value={stopOnLoss}
+                onChange={(e) => setStopOnLoss(parseFloat(e.target.value))}
               />
 
-              <button className="bg-green-500 my-3 w-full rounded-lg py-2">
+              <button
+                className="bg-green-500 my-3 w-full rounded-lg py-2"
+                disabled={!address || autoBetIsLoading}
+                onClick={() => {}}>
                 Bet
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div className="flex justify-between ">
+                <div className="text-gray-300 text-xs">Deposit to play</div>
+                <div className="text-gray-300 text-xs">$0.00</div>
+              </div>
+              <input
+                type="number"
+                className="outline-none px-2 col-span-4 bg-gray-secondary text-white rounded-lg"
+                disabled={!address || depositIsLoading}
+                placeholder={
+                  address
+                    ? `${Number(tokenBalance?.displayValue).toLocaleString(
+                        2
+                      )} ${tokenBalance?.symbol}`
+                    : "Balance"
+                }
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+              />
+              {(allow && allow.toString() === "0") ||
+              (allow && allow.toString() < depositAmount) ? (
+                <>
+                  <button
+                    className="bg-green-500 my-3 w-full rounded-lg py-2"
+                    onClick={approveFunction}>
+                    Approve Spending First
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    className="bg-green-500 my-3 w-full rounded-lg py-2"
+                    disabled={!address || depositIsLoading}
+                    onClick={callDeposit}>
+                    Deposit
+                  </button>
+                </>
+              )}
+
+              <div className="flex justify-between ">
+                <div className="text-gray-300 text-xs">Withdraw your wins</div>
+                <div className="text-gray-300 text-xs">$0.00</div>
+              </div>
+              <input
+                type="number"
+                className="outline-none px-2 col-span-4 bg-gray-secondary text-white rounded-lg"
+                disabled={!address || withdrawIsLoading}
+                placeholder={`${
+                  contractTokenBalance &&
+                  Number(contractTokenBalance).toLocaleString(2)
+                } ${tokenBalance?.symbol}`}
+                value={withdrawAmount}
+                onChange={(e) => setWithdrawAmount(e.target.value)}
+              />
+              <button
+                className="bg-green-500 my-3 w-full rounded-lg py-2"
+                disabled={!address || withdrawIsLoading}
+                onClick={callWithdraw}>
+                Withdraw
               </button>
             </div>
           )}
@@ -452,13 +668,13 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
             step="1"
             onChange={handleRollNumber}
           />
-          <div>
+          {/* <div>
             <label>
               <input
                 type="radio"
                 value="false"
                 checked={betUnder === false}
-                onChange={handleBetUnder}
+                onChange={(e) => setBetUnder(e.target.value === "true")}
               />
               Bet Under (false)
             </label>
@@ -466,18 +682,18 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
               <input
                 type="radio"
                 value="true"
-                checked={betUnder === true} 
-                onChange={handleBetUnder}
+                checked={betUnder === true}
+                onChange={(e) => setBetUnder(e.target.value === "true")}
               />
               Bet Under (true)
             </label>
-          </div>
+          </div> */}
           {/* <Slider
             className="my-28 md:my-auto"
             min={0}
             max={10}
             defaultValue={5}
-            value={sliderValue}
+            value={chosenNumber}
             onChange={handleRollNumber}
             step={1}
             trackStyle={{ backgroundColor: "red" }}

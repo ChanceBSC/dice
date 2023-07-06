@@ -57,3 +57,12 @@ Eg: if they choose 98 as their RUN, as long as they roll anywhere from 1 to 98 t
 The lower the odds, the higher the winning bet from multiplier.
 Tawtis will be sending you the multiplier after he is done with it 
 Since we only have 10 number it should be easy
+
+
+--- deposit as the owner
+--- create deposit and withdraw function for the user
+--- place a bet and stuff
+--- fetch and display the data
+
+--deposit
+  --- add allowance before depositing
