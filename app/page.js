@@ -53,29 +53,17 @@ export default function Home() {
   console.log("🚀 ~ file: page.js:53 ~ Home ~ depositAmount:", depositAmount);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   console.log("🚀 ~ file: page.js:55 ~ Home ~ withdrawAmount:", withdrawAmount);
-  const [playerBetDetails, setPlayerBetDetails] = useState({
-    address: "",
-    betAmount: "",
-    chosenNumber: "",
-    betUnder: false,
-    win: false,
-    roll: "",
-  });
+  const [playerBetDetails, setPlayerBetDetails] = useState([]);
+  console.log(
+    "🚀 ~ file: page.js:64 ~ Home ~ playerBetDetails:",
+    playerBetDetails
+  );
 
-  const [allPlayerBetDetails, setAllPlayerBetDetails] = useState({
-    address: "",
-    betAmount: "",
-    chosenNumber: "",
-    betUnder: false,
-    win: false,
-    roll: "",
-  });
-
-  //     user: "Hindzak",
-  //     date: "November 4,2022",
-  //     bet: 148.985,
-  //     multiplier: "2.00x",
-  //     payout: 297.97,
+  const [allPlayerBetDetails, setAllPlayerBetDetails] = useState([]);
+  console.log(
+    "🚀 ~ file: page.js:74 ~ Home ~ allPlayerBetDetails:",
+    allPlayerBetDetails
+  );
 
   const disconnect = useDisconnect();
   const isMismatched = useNetworkMismatch();
@@ -119,6 +107,8 @@ export default function Home() {
   const { data: playerWins } = useContractRead(diceContract, "playerWins", [
     address,
   ]);
+  const { data: prizePool } = useContractRead(diceContract, "prizePool")
+  console.log("🚀 ~ file: page.js:111 ~ Home ~ prizePool:", prizePool)
 
   console.log(
     "🚀 ~ file: page.js:85 ~ Home ~ maxPayoutMultiplier:",
@@ -126,7 +116,7 @@ export default function Home() {
   );
   console.log(
     "🚀 ~ file: page.js:118 ~ Home ~ contractTokenBalance:",
-    contractTokenBalance
+    contractTokenBalance && contractTokenBalance.toString()
   );
   console.log("🚀 ~ file: page.js:92 ~ Home ~ minBet:", minBet);
   console.log("🚀 ~ file: page.js:112 ~ Home ~ maxBet:", maxBet);
@@ -134,15 +124,19 @@ export default function Home() {
   console.log("🚀 ~ file: page.js:76 ~ Home ~ totalLoss:", totalLoss);
   console.log("🚀 ~ file: page.js:61 ~ Home ~ tokenBalance:", tokenBalance);
 
-  const { mutateAsync: bet, isLoading: betIsLoading } = useContractWrite(
-    diceContract,
-    "bet"
-  );
-
   const { data: allow } = useContractRead(tokenContract, "allowance", [
     address,
     process.env.NEXT_PUBLIC_DICE_CONTRACT,
   ]);
+  console.log(
+    "🚀 ~ file: page.js:143 ~ Home ~ allow:",
+    allow && allow.toString()
+  );
+
+  const { mutateAsync: bet, isLoading: betIsLoading } = useContractWrite(
+    diceContract,
+    "bet"
+  );
 
   const { mutateAsync: approve, isLoading: approveIsLoading } =
     useContractWrite(tokenContract, "approve");
@@ -168,9 +162,14 @@ export default function Home() {
   );
 
   const handleBetAmount = (event) => {
-    let num = Number(tokenBalance?.displayValue).toFixed(2);
+    let format = Number(
+      ethers.utils.formatEther(contractTokenBalance)
+    ).toLocaleString(2);
+    let num = Number(format).toFixed(2);
     if (event.target.value.length > num.length) {
-      setBetAmount(Number(tokenBalance?.displayValue).toFixed(2));
+      setBetAmount(
+        Number(ethers.utils.formatEther(contractTokenBalance)).toFixed(2)
+      );
       // handleRollNumber(event);
     } else {
       setBetAmount(event.target.value);
@@ -192,7 +191,9 @@ export default function Home() {
     const prob = (maxRange - number + 1) / (maxRange - minRange + 1);
     console.log("🚀 ~ file: page.js:166 ~ handleRollNumber ~ prob:", prob);
 
-    const multi = (maxPayoutMultiplier.toString() / prob).toFixed(2);
+    const multi = (
+      maxPayoutMultiplier && maxPayoutMultiplier.toString() / prob
+    ).toFixed(2);
     console.log("🚀 ~ file: page.js:168 ~ handleRollNumber ~ multi:", multi);
 
     const winAmount = (betAmount * multi).toFixed(2);
@@ -212,6 +213,7 @@ export default function Home() {
       const data = await approve({
         args: [process.env.NEXT_PUBLIC_DICE_CONTRACT, "100000"],
       });
+      alert("approve done successful");
       console.log("contract call success", data);
     } catch (e) {
       console.error("contract call failure", e);
@@ -220,12 +222,46 @@ export default function Home() {
 
   async function placeBet() {
     try {
+      console.log("place bet");
+      if (
+        (betAmount > maxBet && maxBet.toString()) ||
+        (betAmount < minBet && minBet.toString())
+      ) {
+        alert(
+          `Please enter a valid amount between ${
+            minBet && minBet.toString()
+          } and ${maxBet && maxBet.toString()}`
+        );
+      }
+      // if (
+      //   betAmount > contractTokenBalance &&
+      //   contractTokenBalance.toString().toFixed(2)
+      // ) {
+      //   alert(
+      //     `Insufficient ${
+      //       contractTokenBalance &&
+      //       Number(
+      //         ethers.utils.formatEther(contractTokenBalance)
+      //       ).toLocaleString(2)
+      //     } to make ${betAmount} BET please deposit more`
+      //   );
+      // } else {
+      const parsedAmount = ethers.utils.formatEther(betAmount);
+      console.log(
+        "🚀 ~ file: page.js:261 ~ placeBet ~ parsedAmount:",
+        parsedAmount && parsedAmount.toString()
+      );
       const data = await bet({
         args: [betAmount, chosenNumber, betUnder],
       });
-      console.log("contract call success", data);
+      setBetAmount("");
+      setChosenNumber(5);
+      alert('bet placed successful')
+      console.log("placeBet contract call success", data);
+      // }
     } catch (e) {
-      console.error("contract call failure", err);
+      console.error("contract call failure", e);
+      console.error("contract call failure", e.reason);
     }
   }
 
@@ -243,6 +279,15 @@ export default function Home() {
           increaseOnLoss,
         ],
       });
+      setBetAmount("");
+      setChosenNumber("");
+      // setBetUnder(e.target.value === "false");
+      setNumOfBets(2);
+      setStopOnProfit("");
+      setStopOnLoss("");
+      setIncreaseOnProfit("");
+      setIncreaseOnLoss("");
+      alert('auto bet placed successful')
       console.log("contract call success", data);
     } catch (e) {
       console.error("contract call failure", e);
@@ -253,16 +298,24 @@ export default function Home() {
     try {
       const limit = 20;
       const data = await diceContract?.call("getAllBets", [limit]);
-      setAllPlayerBetDetails({
-        ...allPlayerBetDetails,
-        address: data.address,
-        betAmount: data.betAmount,
-        chosenNumber: data.chosenNumber,
-        betUnder: data.betUnder,
-        win: data.win,
-        roll: data.roll,
-      });
-      console.log("success", data);
+
+      const transformedData = data
+        .map((item) => ({
+          betAmount: item[0].toLocaleString(),
+          chosenNumber: item[1].toString(),
+          betUnder: item[2].toString(),
+          roll: item[3].toString(),
+          win: item[4].toString(),
+        }))
+        .filter(
+          (item) =>
+            item.betAmount !== "0" &&
+            item.chosenNumber !== "0" &&
+            item.roll !== "0"
+        );
+
+      setAllPlayerBetDetails(transformedData);
+      console.log("data all success", data);
     } catch (e) {
       console.error("error reading data", e);
     }
@@ -272,16 +325,24 @@ export default function Home() {
     try {
       const limit = 20;
       const data = await diceContract?.call("getPlayerBets", [address, limit]);
-      setPlayerBetDetails({
-        ...playerBetDetails,
-        address: data.address,
-        betAmount: data.betAmount,
-        chosenNumber: data.chosenNumber,
-        betUnder: data.betUnder,
-        win: data.win,
-        roll: data.roll,
-      });
-      console.log("success", data);
+
+      const transformedData = data
+        .map((item) => ({
+          betAmount: item[0].toLocaleString(),
+          chosenNumber: item[1].toString(),
+          betUnder: item[2].toString(),
+          roll: item[3].toString(),
+          win: item[4].toString(),
+        }))
+        .filter(
+          (item) =>
+            item.betAmount !== "0" &&
+            item.chosenNumber !== "0" &&
+            item.roll !== "0"
+        );
+
+      setPlayerBetDetails(transformedData);
+      console.log("data indiviual success", data);
     } catch (e) {
       console.error("error reading data", e);
     }
@@ -292,9 +353,12 @@ export default function Home() {
       if (depositAmount === "") {
         return;
       } else {
+        const parsedAmount = ethers.utils.parseEther(depositAmount);
         const data = await deposit({
-          args: [depositAmount],
+          args: [parsedAmount],
         });
+        setDepositAmount("");
+        alert('deposit successful')
         console.info("deposit contract call success", data);
       }
     } catch (e) {
@@ -310,6 +374,8 @@ export default function Home() {
         const data = await withdraw({
           args: [withdrawAmount],
         });
+        setWithdrawAmount("");
+        alert("withdrawal successful");
         console.info("withdraw contract call success", data);
       }
     } catch (e) {
@@ -318,9 +384,16 @@ export default function Home() {
   }
 
   useEffect(() => {
-    const winAmount = (betAmount * multiplier).toFixed(2);
-    console.log("🚀 ~ file: page.js:213 ~ useEffect ~ winAmount:", winAmount);
-    setPotentialWin(winAmount);
+    const minRange = 1;
+    const maxRange = 10;
+
+    if (chosenNumber < minRange || chosenNumber > maxRange) {
+      return null;
+    }
+
+    const prob = (maxRange - chosenNumber + 1) / (maxRange - minRange + 1);
+    setProbability(prob)
+
   }, [betAmount, chosenNumber, multiplier, probability]);
 
   useEffect(() => {
@@ -330,6 +403,8 @@ export default function Home() {
   useEffect(() => {
     readData();
   }, [diceContract, address]);
+
+  useEffect(() => {}, [diceContract, address, tokenContract]);
 
   const bigWins = [
     {
@@ -450,13 +525,16 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
                   className="outline-none px-2 col-span-4 bg-gray-secondary text-white rounded-lg"
                   placeholder={
                     address
-                      ? `${Number(tokenBalance?.displayValue).toLocaleString(
-                          2
-                        )} ${tokenBalance?.symbol}`
+                      ? `${
+                          contractTokenBalance &&
+                          Number(
+                            ethers.utils.formatEther(contractTokenBalance)
+                          ).toLocaleString(2)
+                        } ${tokenBalance?.symbol}`
                       : "Balance"
                   }
                   value={betAmount}
-                  onChange={handleBetAmount}
+                  onChange={(e) => setBetAmount(e.target.value)}
                 />
                 <button
                   className="text-white border-r-2 text-sm border-gray-800"
@@ -484,7 +562,7 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
               <button
                 className="bg-green-500 my-3 w-full rounded-lg py-2"
                 disabled={!address || betIsLoading}
-                onClick={() => {}}>
+                onClick={placeBet}>
                 Bet
               </button>
             </div>
@@ -589,7 +667,7 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
               <button
                 className="bg-green-500 my-3 w-full rounded-lg py-2"
                 disabled={!address || autoBetIsLoading}
-                onClick={() => {}}>
+                onClick={placeAutoBet}>
                 Bet
               </button>
             </div>
@@ -613,8 +691,7 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
                 value={depositAmount}
                 onChange={(e) => setDepositAmount(e.target.value)}
               />
-              {(allow && allow.toString() === "0") ||
-              (allow && allow.toString() < depositAmount) ? (
+              {allow && allow.toString() === "0" ? (
                 <>
                   <button
                     className="bg-green-500 my-3 w-full rounded-lg py-2"
@@ -643,7 +720,9 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
                 disabled={!address || withdrawIsLoading}
                 placeholder={`${
                   contractTokenBalance &&
-                  Number(contractTokenBalance).toLocaleString(2)
+                  Number(
+                    ethers.utils.formatEther(contractTokenBalance)
+                  ).toLocaleString(2)
                 } ${tokenBalance?.symbol}`}
                 value={withdrawAmount}
                 onChange={(e) => setWithdrawAmount(e.target.value)}
@@ -668,7 +747,7 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
             step="1"
             onChange={handleRollNumber}
           />
-          {/* <div>
+          <div>
             <label>
               <input
                 type="radio"
@@ -687,7 +766,7 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
               />
               Bet Under (true)
             </label>
-          </div> */}
+          </div>
           {/* <Slider
             className="my-28 md:my-auto"
             min={0}
@@ -763,7 +842,7 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
                 field="rank"
                 header="Rank"
                 headerClassName="text-gray-300"></Column>
-              <Column field="user" header="User"></Column>
+              <Column field="rank" header="rank"></Column>
               <Column field="date" header="Date"></Column>
               <Column field="bet" header="Bet"></Column>
               <Column field="multiplier" header="Multiplier"></Column>
@@ -815,7 +894,7 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
           </div>
         ) : (
           <DataTable
-            value={myBets}
+            value={playerBetDetails}
             tableStyle={{ minWidth: "50rem" }}
             rows={10}
             paginator
@@ -823,10 +902,15 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
             emptyMessage="No Bets found."
             currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries">
-            <Column field="date" header="Date"></Column>
-            <Column field="bet" header="Bet"></Column>
-            <Column field="multiplier" header="Multiplier"></Column>
-            <Column field="payout" header="Payout"></Column>
+            <Column field="betAmount" header="Bet Amount"></Column>
+            <Column field="chosenNumber" header="Chosen Number"></Column>
+            <Column field="roll" header="Roll"></Column>
+            <Column field="win" header="Win">
+              {(rowData) => <span>{rowData.win ? "Won" : "Lost"}</span>}
+            </Column>
+            <Column field="betUnder" header="Bet Under">
+              {(rowData) => <span>{rowData.betUnder ? "Under" : "Over"}</span>}
+            </Column>
           </DataTable>
         )}
       </div>

@@ -63,6 +63,9 @@ Since we only have 10 number it should be easy
 --- create deposit and withdraw function for the user
 --- place a bet and stuff
 --- fetch and display the data
+--- call `calculatePotentailPayout in the Ui`
 
 --deposit
   --- add allowance before depositing
+
+
