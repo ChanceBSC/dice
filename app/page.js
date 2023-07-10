@@ -51,6 +51,10 @@ export default function Home() {
 
   const [depositAmount, setDepositAmount] = useState("");
   console.log("🚀 ~ file: page.js:53 ~ Home ~ depositAmount:", depositAmount);
+  console.log(
+    "🚀 ~ file: page.js:54 ~ Home ~ depositAmount:",
+    depositAmount && ethers.utils.parseEther(depositAmount).toString()
+  );
   const [withdrawAmount, setWithdrawAmount] = useState("");
   console.log("🚀 ~ file: page.js:55 ~ Home ~ withdrawAmount:", withdrawAmount);
   const [playerBetDetails, setPlayerBetDetails] = useState([]);
@@ -107,8 +111,11 @@ export default function Home() {
   const { data: playerWins } = useContractRead(diceContract, "playerWins", [
     address,
   ]);
-  const { data: prizePool } = useContractRead(diceContract, "prizePool")
-  console.log("🚀 ~ file: page.js:111 ~ Home ~ prizePool:", prizePool)
+  const { data: prizePool } = useContractRead(diceContract, "prizePool");
+  console.log(
+    "🚀 ~ file: page.js:111 ~ Home ~ prizePool:",
+    prizePool && prizePool.toString()
+  );
 
   console.log(
     "🚀 ~ file: page.js:85 ~ Home ~ maxPayoutMultiplier:",
@@ -118,8 +125,18 @@ export default function Home() {
     "🚀 ~ file: page.js:118 ~ Home ~ contractTokenBalance:",
     contractTokenBalance && contractTokenBalance.toString()
   );
-  console.log("🚀 ~ file: page.js:92 ~ Home ~ minBet:", minBet);
-  console.log("🚀 ~ file: page.js:112 ~ Home ~ maxBet:", maxBet);
+  console.log(
+    "🚀 ~ file: page.js:92 ~ Home ~ minBet:",
+    minBet && minBet.toString()
+  );
+  console.log(
+    "🚀 ~ file: page.js:112 ~ Home ~ maxBet:",
+    maxBet && ethers.utils.formatEther(maxBet)
+  );
+  console.log(
+    "🚀 ~ file: page.js:113 ~ Home ~ maxBet:",
+    maxBet && maxBet.toString()
+  );
   console.log("🚀 ~ file: page.js:80 ~ Home ~ totalProfit:", totalProfit);
   console.log("🚀 ~ file: page.js:76 ~ Home ~ totalLoss:", totalLoss);
   console.log("🚀 ~ file: page.js:61 ~ Home ~ tokenBalance:", tokenBalance);
@@ -205,8 +222,31 @@ export default function Home() {
     setChosenNumber(number);
     setProbability(prob);
     setMultiplier(multi);
-    setPotentialWin(winAmount);
+    // setPotentialWin(winAmount);
+    calculatePotentialPayout();
   };
+
+  async function calculatePotentialPayout() {
+    try {
+      const parsedAmount = ethers.utils.parseEther(betAmount);
+      const winAmount = await diceContract?.call("calculatePotentialPayout", [
+        parsedAmount,
+        chosenNumber,
+        betUnder,
+      ]);
+      console.log(
+        "🚀 ~ file: page.js:237 ~ calculatePotentialPayout ~ winAmount:",
+        winAmount
+      );
+      setPotentialWin(ethers.utils.formatEther(winAmount));
+    } catch (e) {
+      console.error("contract call failure", e);
+    }
+  }
+
+  useEffect(() => {
+    calculatePotentialPayout();
+  }, [betAmount, multiplier, chosenNumber, betUnder]);
 
   async function approveFunction() {
     try {
@@ -223,14 +263,13 @@ export default function Home() {
   async function placeBet() {
     try {
       console.log("place bet");
-      if (
-        (betAmount > maxBet && maxBet.toString()) ||
-        (betAmount < minBet && minBet.toString())
-      ) {
+      const parsedMinBet = ethers.utils.formatEther(minBet);
+      const parsedMaxBet = ethers.utils.formatEther(maxBet);
+      const parsedAmount = ethers.utils.parseEther(betAmount);
+
+      if (parsedAmount > parsedMaxBet || parsedAmount < parsedMinBet) {
         alert(
-          `Please enter a valid amount between ${
-            minBet && minBet.toString()
-          } and ${maxBet && maxBet.toString()}`
+          `Please enter a valid amount between ${parsedMinBet} and ${parsedMaxBet}`
         );
       }
       // if (
@@ -246,22 +285,23 @@ export default function Home() {
       //     } to make ${betAmount} BET please deposit more`
       //   );
       // } else {
-      const parsedAmount = ethers.utils.formatEther(betAmount);
       console.log(
         "🚀 ~ file: page.js:261 ~ placeBet ~ parsedAmount:",
         parsedAmount && parsedAmount.toString()
       );
       const data = await bet({
-        args: [betAmount, chosenNumber, betUnder],
+        args: [parsedAmount, chosenNumber, betUnder],
       });
       setBetAmount("");
       setChosenNumber(5);
-      alert('bet placed successful')
+      setPotentialWin("");
+      alert("bet placed successful");
       console.log("placeBet contract call success", data);
       // }
     } catch (e) {
       console.error("contract call failure", e);
       console.error("contract call failure", e.reason);
+      alert(e.reason);
     }
   }
 
@@ -287,7 +327,7 @@ export default function Home() {
       setStopOnLoss("");
       setIncreaseOnProfit("");
       setIncreaseOnLoss("");
-      alert('auto bet placed successful')
+      alert("auto bet placed successful");
       console.log("contract call success", data);
     } catch (e) {
       console.error("contract call failure", e);
@@ -301,11 +341,11 @@ export default function Home() {
 
       const transformedData = data
         .map((item) => ({
-          betAmount: item[0].toLocaleString(),
+          betAmount: Number(ethers.utils.formatEther(item[0])).toLocaleString(),
           chosenNumber: item[1].toString(),
-          betUnder: item[2].toString(),
           roll: item[3].toString(),
-          win: item[4].toString(),
+          betUnder: item[2].toString() ? "Under" : "True",
+          win: item[4].toString() ? "Loss" : "Won",
         }))
         .filter(
           (item) =>
@@ -315,7 +355,7 @@ export default function Home() {
         );
 
       setAllPlayerBetDetails(transformedData);
-      console.log("data all success", data);
+      console.log("data all success", transformedData);
     } catch (e) {
       console.error("error reading data", e);
     }
@@ -328,11 +368,11 @@ export default function Home() {
 
       const transformedData = data
         .map((item) => ({
-          betAmount: item[0].toLocaleString(),
+          betAmount: Number(ethers.utils.formatEther(item[0])).toLocaleString(),
           chosenNumber: item[1].toString(),
-          betUnder: item[2].toString(),
           roll: item[3].toString(),
-          win: item[4].toString(),
+          betUnder: item[2].toString() ? "Under" : "True",
+          win: item[4].toString() ? "Loss" : "Won",
         }))
         .filter(
           (item) =>
@@ -342,7 +382,7 @@ export default function Home() {
         );
 
       setPlayerBetDetails(transformedData);
-      console.log("data indiviual success", data);
+      console.log("data indiviual success", transformedData);
     } catch (e) {
       console.error("error reading data", e);
     }
@@ -350,6 +390,12 @@ export default function Home() {
 
   async function callDeposit() {
     try {
+      const parsedDepositAmount = ethers.utils.parseEther(depositAmount);
+      console.log(
+        "🚀 ~ file: page.js:370 ~ callDeposit ~ parsedDepositAmount:",
+        parsedDepositAmount && parsedDepositAmount.toLocaleString()
+      );
+
       if (depositAmount === "") {
         return;
       } else {
@@ -358,7 +404,7 @@ export default function Home() {
           args: [parsedAmount],
         });
         setDepositAmount("");
-        alert('deposit successful')
+        alert("deposit successful");
         console.info("deposit contract call success", data);
       }
     } catch (e) {
@@ -392,17 +438,16 @@ export default function Home() {
     }
 
     const prob = (maxRange - chosenNumber + 1) / (maxRange - minRange + 1);
-    setProbability(prob)
-
+    setProbability(prob);
   }, [betAmount, chosenNumber, multiplier, probability]);
 
   useEffect(() => {
     readAllData();
-  }, [diceContract, address]);
+  }, [diceContract, address, betAmount, betIsLoading]);
 
   useEffect(() => {
     readData();
-  }, [diceContract, address]);
+  }, [diceContract, address, betAmount, betIsLoading]);
 
   useEffect(() => {}, [diceContract, address, tokenContract]);
 
@@ -584,7 +629,7 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
                         )} ${tokenBalance?.symbol}`
                       : "Balance"
                   }
-                  value={betAmount}
+                  value={Number(betAmount).toLocaleString()}
                   onChange={handleBetAmount}
                 />
                 <button
@@ -688,13 +733,14 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
                       )} ${tokenBalance?.symbol}`
                     : "Balance"
                 }
-                value={depositAmount}
+                value={depositAmount.toLocaleString()}
                 onChange={(e) => setDepositAmount(e.target.value)}
               />
               {allow && allow.toString() === "0" ? (
                 <>
                   <button
                     className="bg-green-500 my-3 w-full rounded-lg py-2"
+                    disabled={approveIsLoading}
                     onClick={approveFunction}>
                     Approve Spending First
                   </button>
@@ -818,6 +864,25 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
         </div>
       </div>
       <div className="flex flex-col bg-gray-secondary p-4 mt-8 rounded-lg mx-12  xl:mx-64">
+        <div className="text-white">
+          <div>
+            <p>Wallet {tokenBalance?.symbol} Balance</p>
+            <p>
+              {Number(tokenBalance.displayValue).toLocaleString()}{" "}
+              {tokenBalance?.symbol}
+            </p>
+          </div>
+          <div>
+            <p>Dice {tokenBalance?.symbol} Balance</p>
+            <p>
+              {contractTokenBalance &&
+                Number(
+                  ethers.utils.formatEther(contractTokenBalance)
+                ).toLocaleString(2)}{" "}
+              {tokenBalance?.symbol}
+            </p>
+          </div>
+        </div>
         <div className="text-white">Dice</div>
         <div className=" text-white bg-gray-tertiary rounded-2xl justify-items-center my-2 p-1 flex w-56">
           <button
@@ -877,7 +942,7 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
         {selection2 == 0 ? (
           <div className="card ">
             <DataTable
-              value={allBets}
+              value={allPlayerBetDetails}
               tableStyle={{ minWidth: "50rem" }}
               rows={10}
               paginator
@@ -886,10 +951,11 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
               emptyMessage="No Bets found."
               currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries">
               <Column field="user" header="User"></Column>
-              <Column field="date" header="Date"></Column>
-              <Column field="bet" header="Bet"></Column>
-              <Column field="multiplier" header="Multiplier"></Column>
-              <Column field="payout" header="Payout"></Column>
+              <Column field="betAmount" header="Bet Amount"></Column>
+              <Column field="chosenNumber" header="Chosen Number"></Column>
+              <Column field="roll" header="Roll"></Column>
+              <Column field="betUnder" header="Bet Under"></Column>
+              <Column field="win" header="Win"></Column>
             </DataTable>
           </div>
         ) : (
@@ -905,12 +971,8 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
             <Column field="betAmount" header="Bet Amount"></Column>
             <Column field="chosenNumber" header="Chosen Number"></Column>
             <Column field="roll" header="Roll"></Column>
-            <Column field="win" header="Win">
-              {(rowData) => <span>{rowData.win ? "Won" : "Lost"}</span>}
-            </Column>
-            <Column field="betUnder" header="Bet Under">
-              {(rowData) => <span>{rowData.betUnder ? "Under" : "Over"}</span>}
-            </Column>
+            <Column field="betUnder" header="Bet Under"></Column>
+            <Column field="win" header="Win"></Column>
           </DataTable>
         )}
       </div>
