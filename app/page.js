@@ -307,9 +307,18 @@ export default function Home() {
 
   async function placeAutoBet() {
     try {
+      const parsedMinBet = ethers.utils.formatEther(minBet);
+      const parsedMaxBet = ethers.utils.formatEther(maxBet);
+      const parsedAmount = ethers.utils.parseEther(betAmount);
+
+      if (parsedAmount > parsedMaxBet || parsedAmount < parsedMinBet) {
+        alert(
+          `Please enter a valid amount between ${parsedMinBet} and ${parsedMaxBet}`
+        );
+      }
       const data = await autoBet({
         args: [
-          betAmount,
+          parsedAmount,
           chosenNumber,
           betUnder,
           numOfBet,
@@ -414,11 +423,12 @@ export default function Home() {
 
   async function callWithdraw() {
     try {
+      const parsedWithdrawAmount = ethers.utils.parseEther(withdrawAmount);
       if (withdrawAmount === "") {
         return;
       } else {
         const data = await withdraw({
-          args: [withdrawAmount],
+          args: [parsedWithdrawAmount],
         });
         setWithdrawAmount("");
         alert("withdrawal successful");
@@ -477,32 +487,6 @@ export default function Home() {
       payout: 248.97,
     },
   ];
-
-  const allBets = [
-    {
-      user: "Hindzak",
-      date: "November 4,2022",
-      bet: 148.985,
-      multiplier: "2.00x",
-      payout: 297.97,
-    },
-    {
-      user: "ASKD",
-      date: "August 6,2022",
-      bet: 207.985,
-      multiplier: "2.00x",
-      payout: 414.97,
-    },
-    {
-      user: "sdfw",
-      date: "February 4,2023",
-      bet: 124.985,
-      multiplier: "2.00x",
-      payout: 248.97,
-    },
-  ];
-
-  const myBets = [];
 
   return (
     <main className="bg-gray-primary min-h-screen pt-4 ">
@@ -624,13 +608,16 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
                   className="outline-none px-2 col-span-4 bg-gray-secondary text-white rounded-lg"
                   placeholder={
                     address
-                      ? `${Number(tokenBalance?.displayValue).toLocaleString(
-                          2
-                        )} ${tokenBalance?.symbol}`
+                      ? `${
+                          contractTokenBalance &&
+                          Number(
+                            ethers.utils.formatEther(contractTokenBalance)
+                          ).toLocaleString(2)
+                        } ${tokenBalance?.symbol}`
                       : "Balance"
                   }
-                  value={Number(betAmount).toLocaleString()}
-                  onChange={handleBetAmount}
+                  value={betAmount}
+                  onChange={(e) => setBetAmount(e.target.value)}
                 />
                 <button
                   className="text-white border-r-2 text-sm border-gray-800"
@@ -868,10 +855,11 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
           <div>
             <p>Wallet {tokenBalance?.symbol} Balance</p>
             <p>
-              {Number(tokenBalance.displayValue).toLocaleString()}{" "}
+              {Number(tokenBalance?.displayValue).toLocaleString()}{" "}
               {tokenBalance?.symbol}
             </p>
           </div>
+          <br />
           <div>
             <p>Dice {tokenBalance?.symbol} Balance</p>
             <p>
@@ -882,7 +870,37 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
               {tokenBalance?.symbol}
             </p>
           </div>
+          <br />
+          <div>
+            <p>Prize Pool</p>
+            <p>
+              {prizePool &&
+                Number(
+                  ethers.utils.formatEther(prizePool)
+                ).toLocaleString()}{" "}
+              {tokenBalance?.symbol}
+            </p>
+          </div>
+          <br />
+          <div>
+            <p>Total Bets</p>
+            <p></p>
+          </div>
+          <br />
+
+          <div>
+            <p>Bet Won</p>
+            <p>{playerWins && Number(playerWins).toLocaleString()}</p>
+          </div>
+          <br />
+          <div>
+            <p>Bet Lost</p>
+            <p>{playerLosses && Number(playerLosses).toLocaleString()}</p>
+          </div>
         </div>
+        <br />
+        <br />
+        <br />
         <div className="text-white">Dice</div>
         <div className=" text-white bg-gray-tertiary rounded-2xl justify-items-center my-2 p-1 flex w-56">
           <button
@@ -890,14 +908,14 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
               selection1 == 0 ? "bg-gray-btn" : ""
             }`}
             onClick={() => setSelection1((value) => (value = 0))}>
-            Big Wins
+            Wins
           </button>
           <button
             className={` w-full rounded-2xl py-1 ${
               selection1 == 1 ? "bg-gray-btn" : ""
             }`}
             onClick={() => setSelection1((value) => (value = 1))}>
-            Description
+            Losses
           </button>
         </div>
         {selection1 == 0 ? (

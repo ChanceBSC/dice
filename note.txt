@@ -58,7 +58,7 @@ The lower the odds, the higher the winning bet from multiplier.
 Tawtis will be sending you the multiplier after he is done with it 
 Since we only have 10 number it should be easy
 
---- add the potentialPayout section to the read function and bettor
+--- add the potentialPayout section to the read function and bettor and also playerBetCount
 
 --- deposit as the owner
 --- create deposit and withdraw function for the user
