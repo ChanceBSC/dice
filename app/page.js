@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Slider from "rc-slider";
+import toast from "react-hot-toast";
 import "rc-slider/assets/index.css";
 import "primereact/resources/themes/lara-light-indigo/theme.css";
 import "primereact/resources/primereact.min.css";
@@ -249,18 +250,26 @@ export default function Home() {
   }, [betAmount, multiplier, chosenNumber, betUnder]);
 
   async function approveFunction() {
+    const notification = toast.loading(`Approving`);
     try {
       const data = await approve({
         args: [process.env.NEXT_PUBLIC_DICE_CONTRACT, "100000"],
       });
-      alert("approve done successful");
+      // alert("approve done successful");
+      toast.success(`Approval Successfully`, {
+        id: notification,
+      });
       console.log("contract call success", data);
     } catch (e) {
+      toast.error(`Whoops ${e.reason}`, {
+        id: notification,
+      });
       console.error("contract call failure", e);
     }
   }
 
   async function placeBet() {
+    const notification = toast.loading(`Placing Bet`);
     try {
       console.log("place bet");
       const parsedMinBet = ethers.utils.formatEther(minBet);
@@ -268,9 +277,15 @@ export default function Home() {
       const parsedAmount = ethers.utils.parseEther(betAmount);
 
       if (parsedAmount > parsedMaxBet || parsedAmount < parsedMinBet) {
-        alert(
-          `Please enter a valid amount between ${parsedMinBet} and ${parsedMaxBet}`
+        toast.error(
+          `Please enter a valid amount between ${parsedMinBet} and ${parsedMaxBet}`,
+          {
+            id: notification,
+          }
         );
+        // alert(
+        //   `Please enter a valid amount between ${parsedMinBet} and ${parsedMaxBet}`
+        // );
       }
       // if (
       //   betAmount > contractTokenBalance &&
@@ -285,36 +300,48 @@ export default function Home() {
       //     } to make ${betAmount} BET please deposit more`
       //   );
       // } else {
-      console.log(
-        "🚀 ~ file: page.js:261 ~ placeBet ~ parsedAmount:",
-        parsedAmount && parsedAmount.toString()
-      );
       const data = await bet({
         args: [parsedAmount, chosenNumber, betUnder],
       });
+
       setBetAmount("");
       setChosenNumber(5);
       setPotentialWin("");
-      alert("bet placed successful");
+
+      // alert("bet placed successful");
+      toast.success(`Bet Placed Successfully`, {
+        id: notification,
+      });
       console.log("placeBet contract call success", data);
       // }
     } catch (e) {
+      toast.error(`Whoops ${e.reason}`, {
+        id: notification,
+      });
       console.error("contract call failure", e);
       console.error("contract call failure", e.reason);
-      alert(e.reason);
+      // alert(e.reason);
     }
   }
 
   async function placeAutoBet() {
+        const notification = toast.loading(`Placing Bet`);
+
     try {
       const parsedMinBet = ethers.utils.formatEther(minBet);
       const parsedMaxBet = ethers.utils.formatEther(maxBet);
       const parsedAmount = ethers.utils.parseEther(betAmount);
 
       if (parsedAmount > parsedMaxBet || parsedAmount < parsedMinBet) {
-        alert(
-          `Please enter a valid amount between ${parsedMinBet} and ${parsedMaxBet}`
-        );
+         toast.error(
+           `Please enter a valid amount between ${parsedMinBet} and ${parsedMaxBet}`,
+           {
+             id: notification,
+           }
+         );
+        // alert(
+        //   `Please enter a valid amount between ${parsedMinBet} and ${parsedMaxBet}`
+        // );
       }
       const data = await autoBet({
         args: [
@@ -328,6 +355,7 @@ export default function Home() {
           increaseOnLoss,
         ],
       });
+
       setBetAmount("");
       setChosenNumber("");
       // setBetUnder(e.target.value === "false");
@@ -336,16 +364,29 @@ export default function Home() {
       setStopOnLoss("");
       setIncreaseOnProfit("");
       setIncreaseOnLoss("");
-      alert("auto bet placed successful");
+
+      // alert("auto bet placed successful");
+      toast.success(`Bet Placed Successfully`, {
+        id: notification,
+      });
+
       console.log("contract call success", data);
     } catch (e) {
+       toast.error(`Whoops ${e.reason}`, {
+         id: notification,
+       });
       console.error("contract call failure", e);
     }
   }
+  
+  const [winDetails, setWinDetails] = useState([])
+  const [lossDetails, setLossDetails] = useState([])
 
   async function readAllData() {
     try {
       const limit = 20;
+      const limit2 = 10;
+
       const data = await diceContract?.call("getAllBets", [limit]);
 
       const transformedData = data
@@ -363,7 +404,46 @@ export default function Home() {
             item.roll !== "0"
         );
 
+      const data2 = await diceContract?.call("getAllBets", [limit2]);
+
+      const winData = data2
+        .map((item) => ({
+          betAmount: Number(ethers.utils.formatEther(item[0])).toLocaleString(),
+          chosenNumber: item[1].toString(),
+          roll: item[3].toString(),
+          betUnder: item[2].toString() ? "Under" : "True",
+          win: item[4].toString() ? "Loss" : "Won",
+        }))
+        .filter(
+          (item) =>
+            item.betAmount !== "0" &&
+            item.chosenNumber !== "0" &&
+            item.roll !== "0" &&
+            item.win !== "Loss"
+        );
+      console.log("🚀 ~ file: page.js:421 ~ readAllData ~ winData:", winData)
+
+      const lossData = data2
+        .map((item) => ({
+          betAmount: Number(ethers.utils.formatEther(item[0])).toLocaleString(),
+          chosenNumber: item[1].toString(),
+          roll: item[3].toString(),
+          betUnder: item[2].toString() ? "Under" : "True",
+          win: item[4].toString() ? "Loss" : "Won",
+        }))
+        .filter(
+          (item) =>
+            item.betAmount !== "0" &&
+            item.chosenNumber !== "0" &&
+            item.roll !== "0" &&
+            item.win !== "Won"
+        );
+      console.log("🚀 ~ file: page.js:438 ~ readAllData ~ lossData:", lossData)
+
       setAllPlayerBetDetails(transformedData);
+      setWinDetails(winData)
+      setLossDetails(lossData)
+
       console.log("data all success", transformedData);
     } catch (e) {
       console.error("error reading data", e);
@@ -920,22 +1000,40 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
         </div>
         {selection1 == 0 ? (
           <div className="card ">
-            <DataTable value={bigWins} tableStyle={{ minWidth: "50rem" }}>
+            <DataTable
+              value={winDetails}
+              tableStyle={{ minWidth: "50rem" }}
+              emptyMessage="No Wins Yet. 🥲">
               <Column
-                field="rank"
-                header="Rank"
+                field="user"
+                header="User"
                 headerClassName="text-gray-300"></Column>
-              <Column field="rank" header="rank"></Column>
-              <Column field="date" header="Date"></Column>
-              <Column field="bet" header="Bet"></Column>
-              <Column field="multiplier" header="Multiplier"></Column>
+              <Column field="betAmount" header="Bet Amount"></Column>
+              <Column field="chosenNumber" header="Chosen Number"></Column>
+              <Column field="roll" header="Roll"></Column>
+              <Column field="betUnder" header="Bet Under"></Column>
+              <Column field="win" header="Win"></Column>
               <Column field="payout" header="Payout"></Column>
             </DataTable>
           </div>
         ) : (
-          <div className="text-gray-300">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-            eiusmod tempor incididunt ut labore et dolore magna aliqua
+          <div className="card ">
+            <DataTable
+              value={lossDetails}
+              tableStyle={{ minWidth: "50rem" }}
+              emptyMessage="No Loss Yet.">
+              <Column
+                field="user"
+                header="User"
+                headerClassName="text-gray-300"></Column>
+              <Column
+                field={`betAmount ${tokenBalance?.symbol}`}
+                header={`Bet Amount`}></Column>
+              <Column field="chosenNumber" header="Chosen Number"></Column>
+              <Column field="roll" header="Roll"></Column>
+              <Column field="betUnder" header="Bet Under"></Column>
+              <Column field="win" header="Win"></Column>
+            </DataTable>
           </div>
         )}
       </div>
