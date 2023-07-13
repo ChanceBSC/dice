@@ -7,10 +7,10 @@ const inter = Inter({ subsets: ["latin"] });
 import { ThirdwebProvider } from "@thirdweb-dev/react";
 import { Toaster } from "react-hot-toast";
 
-export const metadata = {
-  title: "Chance Dice",
-  description: "Chance Dice",
-};
+// export const metadata = {
+//   title: "Chance Dice",
+//   description: "Chance Dice",
+// };
 
 const activeChain = "binance-testnet";
 
