@@ -70,6 +70,9 @@ export default function Home() {
     allPlayerBetDetails
   );
 
+  const [winDetails, setWinDetails] = useState([]);
+  const [lossDetails, setLossDetails] = useState([]);
+
   const disconnect = useDisconnect();
   const isMismatched = useNetworkMismatch();
 
@@ -301,7 +304,7 @@ export default function Home() {
       //   );
       // } else {
       const data = await bet({
-        args: [parsedAmount, chosenNumber, betUnder],
+        args: [parsedAmount.toString(), chosenNumber, betUnder],
       });
 
       setBetAmount("");
@@ -325,7 +328,7 @@ export default function Home() {
   }
 
   async function placeAutoBet() {
-        const notification = toast.loading(`Placing Bet`);
+    const notification = toast.loading(`Placing Bet`);
 
     try {
       const parsedMinBet = ethers.utils.formatEther(minBet);
@@ -333,12 +336,12 @@ export default function Home() {
       const parsedAmount = ethers.utils.parseEther(betAmount);
 
       if (parsedAmount > parsedMaxBet || parsedAmount < parsedMinBet) {
-         toast.error(
-           `Please enter a valid amount between ${parsedMinBet} and ${parsedMaxBet}`,
-           {
-             id: notification,
-           }
-         );
+        toast.error(
+          `Please enter a valid amount between ${parsedMinBet} and ${parsedMaxBet}`,
+          {
+            id: notification,
+          }
+        );
         // alert(
         //   `Please enter a valid amount between ${parsedMinBet} and ${parsedMaxBet}`
         // );
@@ -372,15 +375,12 @@ export default function Home() {
 
       console.log("contract call success", data);
     } catch (e) {
-       toast.error(`Whoops ${e.reason}`, {
-         id: notification,
-       });
+      toast.error(`Whoops ${e.reason}`, {
+        id: notification,
+      });
       console.error("contract call failure", e);
     }
   }
-  
-  const [winDetails, setWinDetails] = useState([])
-  const [lossDetails, setLossDetails] = useState([])
 
   async function readAllData() {
     try {
@@ -391,7 +391,9 @@ export default function Home() {
 
       const transformedData = data
         .map((item) => ({
-          betAmount: Number(ethers.utils.formatEther(item[0])).toLocaleString(),
+          betAmount: `${Number(
+            ethers.utils.formatEther(item[0])
+          ).toLocaleString()} ${tokenBalance?.symbol}`,
           chosenNumber: item[1].toString(),
           roll: item[3].toString(),
           betUnder: item[2].toString() ? "Under" : "True",
@@ -402,13 +404,16 @@ export default function Home() {
             item.betAmount !== "0" &&
             item.chosenNumber !== "0" &&
             item.roll !== "0"
-        );
+        )
+        .reverse();
 
       const data2 = await diceContract?.call("getAllBets", [limit2]);
 
       const winData = data2
         .map((item) => ({
-          betAmount: Number(ethers.utils.formatEther(item[0])).toLocaleString(),
+          betAmount: `${Number(
+            ethers.utils.formatEther(item[0])
+          ).toLocaleString()} ${tokenBalance?.symbol}`,
           chosenNumber: item[1].toString(),
           roll: item[3].toString(),
           betUnder: item[2].toString() ? "Under" : "True",
@@ -420,12 +425,15 @@ export default function Home() {
             item.chosenNumber !== "0" &&
             item.roll !== "0" &&
             item.win !== "Loss"
-        );
-      console.log("🚀 ~ file: page.js:421 ~ readAllData ~ winData:", winData)
+        )
+        .reverse();
+      console.log("🚀 ~ file: page.js:421 ~ readAllData ~ winData:", winData);
 
       const lossData = data2
         .map((item) => ({
-          betAmount: Number(ethers.utils.formatEther(item[0])).toLocaleString(),
+          betAmount: `${Number(
+            ethers.utils.formatEther(item[0])
+          ).toLocaleString()} ${tokenBalance?.symbol}`,
           chosenNumber: item[1].toString(),
           roll: item[3].toString(),
           betUnder: item[2].toString() ? "Under" : "True",
@@ -437,12 +445,13 @@ export default function Home() {
             item.chosenNumber !== "0" &&
             item.roll !== "0" &&
             item.win !== "Won"
-        );
-      console.log("🚀 ~ file: page.js:438 ~ readAllData ~ lossData:", lossData)
+        )
+        .reverse();
+      console.log("🚀 ~ file: page.js:438 ~ readAllData ~ lossData:", lossData);
 
       setAllPlayerBetDetails(transformedData);
-      setWinDetails(winData)
-      setLossDetails(lossData)
+      setWinDetails(winData);
+      setLossDetails(lossData);
 
       console.log("data all success", transformedData);
     } catch (e) {
@@ -457,7 +466,9 @@ export default function Home() {
 
       const transformedData = data
         .map((item) => ({
-          betAmount: Number(ethers.utils.formatEther(item[0])).toLocaleString(),
+          betAmount: `${Number(
+            ethers.utils.formatEther(item[0])
+          ).toLocaleString()} ${tokenBalance?.symbol}`,
           chosenNumber: item[1].toString(),
           roll: item[3].toString(),
           betUnder: item[2].toString() ? "Under" : "True",
@@ -468,7 +479,8 @@ export default function Home() {
             item.betAmount !== "0" &&
             item.chosenNumber !== "0" &&
             item.roll !== "0"
-        );
+        )
+        .reverse();
 
       setPlayerBetDetails(transformedData);
       console.log("data indiviual success", transformedData);
@@ -519,6 +531,24 @@ export default function Home() {
     }
   }
 
+  const handleBetAmountChange = (e) => {
+    const inputValue = e.target.value.replace(/[^0-9.]/g, ""); // Remove non-numeric characters
+    const formattedValue = Number(inputValue).toLocaleString(); // Format the value with commas
+
+    let maxWithdrawAmount = "";
+    if (contractTokenBalance) {
+      maxWithdrawAmount = ethers.utils.formatEther(contractTokenBalance);
+    }
+
+    if (inputValue > maxWithdrawAmount) {
+      setBetAmount(maxWithdrawAmount);
+    } else {
+      setBetAmount(inputValue);
+    }
+
+    e.target.value = formattedValue;
+  };
+
   useEffect(() => {
     const minRange = 1;
     const maxRange = 10;
@@ -540,33 +570,6 @@ export default function Home() {
   }, [diceContract, address, betAmount, betIsLoading]);
 
   useEffect(() => {}, [diceContract, address, tokenContract]);
-
-  const bigWins = [
-    {
-      rank: 1,
-      user: "Hindzak",
-      date: "November 4,2022",
-      bet: 148.985,
-      multiplier: "2.00x",
-      payout: 297.97,
-    },
-    {
-      rank: 2,
-      user: "ASKD",
-      date: "August 6,2022",
-      bet: 207.985,
-      multiplier: "2.00x",
-      payout: 414.97,
-    },
-    {
-      rank: 3,
-      user: "sdfw",
-      date: "February 4,2023",
-      bet: 124.985,
-      multiplier: "2.00x",
-      payout: 248.97,
-    },
-  ];
 
   return (
     <main className="bg-gray-primary min-h-screen pt-4 ">
@@ -642,8 +645,10 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
                         } ${tokenBalance?.symbol}`
                       : "Balance"
                   }
+                  min={0}
                   value={betAmount}
-                  onChange={(e) => setBetAmount(e.target.value)}
+                  onChange={(e) => setBetAmount(e.target.value)}kk
+                  // onChange={handleBetAmountChange}
                 />
                 <button
                   className="text-white border-r-2 text-sm border-gray-800"
@@ -696,8 +701,10 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
                         } ${tokenBalance?.symbol}`
                       : "Balance"
                   }
-                  value={betAmount}
-                  onChange={(e) => setBetAmount(e.target.value)}
+                  value={betAmount ? betAmount.toLocaleString() : ""}
+                  onChange={(e) =>
+                    setBetAmount(e.target.value.replace(/,/g, ""))
+                  }
                 />
                 <button
                   className="text-white border-r-2 text-sm border-gray-800"
@@ -1026,9 +1033,7 @@ abled=true&network=bsc&lightMode=false&primaryColor=%231b213b&backgroundColor=tr
                 field="user"
                 header="User"
                 headerClassName="text-gray-300"></Column>
-              <Column
-                field={`betAmount ${tokenBalance?.symbol}`}
-                header={`Bet Amount`}></Column>
+              <Column field="betAmount" header="Bet Amount"></Column>
               <Column field="chosenNumber" header="Chosen Number"></Column>
               <Column field="roll" header="Roll"></Column>
               <Column field="betUnder" header="Bet Under"></Column>
